@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lily Abroad</title>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@300;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+</head>
+<body>
+  <header class="site-header">
+    <nav>
+      <ul class="nav-list">
+        <li><a href="#home" class="tab-link active" data-tab="home">Home</a></li>
+        <li><a href="#map" class="tab-link" data-tab="map">Map</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="tab-panel active">
+      <div id="slideshow" class="hero">
+        <!-- Slides will be populated automatically from assets/images/manifest.json if present.
+             To update slides after adding images, run: `node scripts/generate-manifest.js` which
+             writes assets/images/manifest.json listing files in the folder. -->
+      </div>
+        <div class="hero-overlay">
+          <div class="hero-text">
+            <div class="season">SPRING 2027</div>
+            <h1 class="title">lily abroad</h1>
+            <div class="subtitle">BARCELONA & ATHENS</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="map" class="tab-panel">
+      <div class="map-container">
+        <div id="mapid"></div>
+        <div class="map-controls">
+          <button id="playFlights">Play</button>
+        </div>
+        <div class="map-bottom-bar">
+          <div class="transport-display">Date: <span id="currentTransport">—</span></div>
+          <input id="progressSlider" type="range" min="0" max="100" value="0">
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:10px;">
+        <button id="openEditor" style="background:var(--brown-2);color:var(--text-light);border:none;padding:8px 12px;border-radius:6px">Edit Travel Path</button>
+      </div>
+    </section>
+
+    <section id="edit" class="tab-panel">
+      <div class="editor">
+        <h2>Edit Travel Path / Saved Travel Paths</h2>
+        <form id="flightForm">
+          <label>From (city): <input name="from" required></label>
+          <label>To (city): <input name="to" required></label>
+          <label>Type:
+            <select name="type">
+              <option value="flight">Flight</option>
+              <option value="train">Train</option>
+              <option value="boat">Boat</option>
+            </select>
+          </label>
+          <label>Date: <input name="date" type="date"></label>
+          <label>From Lat,Lon: <input name="fromCoords" placeholder="lat,lon" required></label>
+          <label>To Lat,Lon: <input name="toCoords" placeholder="lat,lon" required></label>
+          <button type="submit" id="submitBtn">Add</button>
+          <button type="button" id="cancelEdit" style="display:none;margin-left:8px;">Cancel</button>
+        </form>
+        <h3>Saved Travel Paths</h3>
+        <ul id="flightsList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Password modal for protecting the edit page -->
+  <div id="pwModal" class="pw-modal" style="display:none;">
+    <div class="pw-modal-content">
+      <div id="pwMessage">Enter password to access Edit Travel Path</div>
+      <input id="pwInput" type="password" placeholder="Password">
+      <input id="pwConfirm" type="password" placeholder="Confirm password" style="display:none;margin-top:8px;">
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+        <button id="pwCancel">Cancel</button>
+        <button id="pwSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
