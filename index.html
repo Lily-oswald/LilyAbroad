@@ -10,12 +10,18 @@
 </head>
 <body>
   <header class="site-header">
+    <button id="topEditBtn" class="top-edit-button">Edit</button>
     <nav>
       <ul class="nav-list">
         <li><a href="#home" class="tab-link active" data-tab="home">Home</a></li>
         <li><a href="#map" class="tab-link" data-tab="map">Map</a></li>
+        <li><a href="#postcards" class="tab-link" data-tab="postcards">Postcards</a></li>
       </ul>
     </nav>
+    <div id="editMenu" class="edit-menu" style="display:none;">
+      <button id="menuEditMap" class="edit-menu-btn">Edit Map & Travel</button>
+      <button id="menuEditPostcards" class="edit-menu-btn">Edit Postcards</button>
+    </div>
   </header>
 
   <main>
@@ -47,13 +53,55 @@
         </div>
       </div>
       <div style="text-align:center;margin-top:10px;">
-        <button id="openEditor" style="background:var(--brown-2);color:var(--text-light);border:none;padding:8px 12px;border-radius:6px">Edit Travel Path</button>
+        <button id="backupBtn" style="background:transparent;border:1px solid var(--text-light);color:var(--text-light);padding:8px 12px;border-radius:6px;margin-left:8px">Backup</button>
+        <button id="restoreBtn" style="background:transparent;border:1px solid var(--text-light);color:var(--text-light);padding:8px 12px;border-radius:6px;margin-left:8px">Restore</button>
+      </div>
+      <!-- Timeline below the map -->
+      <div id="timeline" class="timeline" aria-label="travel timeline"></div>
+    </section>
+
+    <section id="postcards" class="tab-panel">
+      <div class="postcards-container">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h2 style="margin:0;color:var(--text-light)">Postcards</h2>
+        </div>
+        <div id="postcardsList" class="postcards-list"></div>
+      </div>
+    </section>
+
+    <section id="postcard-editor" class="tab-panel">
+      <div class="editor">
+        <h2>Postcard Editor</h2>
+        <form id="postcardForm">
+          <label>City: <input name="city" required></label>
+          <label>Start Date (optional): <input name="startDate" type="date"></label>
+          <label>End Date (optional): <input name="endDate" type="date"></label>
+          <label>Cover Image (from assets/postcards):
+            <select id="postcardCoverSelect" name="coverImage" required>
+              <option value="">Loading cover images...</option>
+            </select>
+          </label>
+          <label>Text: <textarea name="text" rows="4" style="min-width:320px"></textarea></label>
+          <label>Additional Images (up to 4): <input id="postcardImages" name="images" type="file" accept="image/*" multiple></label>
+          <div id="imagePreview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"></div>
+          <div style="margin-top:12px;">
+            <button type="submit" id="postcardSave" style="background:var(--brown-1);color:var(--text-light);padding:8px 12px;border:none;border-radius:6px">Save</button>
+            <button type="button" id="postcardCancel" style="margin-left:8px;">Cancel</button>
+          </div>
+        </form>
+        <h3 style="margin-top:18px">Saved Postcards</h3>
+        <ul id="postcardsEditorList"></ul>
       </div>
     </section>
 
     <section id="edit" class="tab-panel">
       <div class="editor">
         <h2>Edit Travel Path / Saved Travel Paths</h2>
+        <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">
+          <button id="publishBtn" style="background:var(--brown-1);color:var(--text-light);border:none;padding:8px 12px;border-radius:6px">Publish</button>
+          <button id="serverSettings" style="background:transparent;border:1px solid var(--brown-2);color:var(--text-light);padding:6px 8px;border-radius:6px">Server...</button>
+          <div id="serverInfo" style="margin-left:8px;font-size:13px;opacity:0.9"></div>
+        </div>
         <form id="flightForm">
           <label>From (city): <input name="from" required></label>
           <label>To (city): <input name="to" required></label>
@@ -65,6 +113,7 @@
             </select>
           </label>
           <label>Date: <input name="date" type="date"></label>
+          <label>End Date (optional): <input name="endDate" type="date"></label>
           <label>From Lat,Lon: <input name="fromCoords" placeholder="lat,lon" required></label>
           <label>To Lat,Lon: <input name="toCoords" placeholder="lat,lon" required></label>
           <button type="submit" id="submitBtn">Add</button>
@@ -86,6 +135,17 @@
         <button id="pwCancel">Cancel</button>
         <button id="pwSubmit">Submit</button>
       </div>
+    </div>
+  </div>
+
+  <div id="postcardModal" class="postcard-modal" style="display:none;">
+    <div class="postcard-modal-content">
+      <button id="postcardModalClose" class="postcard-modal-close" type="button">Close</button>
+      <img id="postcardModalCover" alt="Postcard cover">
+      <h3 id="postcardModalTitle"></h3>
+      <div id="postcardModalDates" class="postcard-modal-dates"></div>
+      <p id="postcardModalText"></p>
+      <div id="postcardModalImages" class="postcard-modal-images"></div>
     </div>
   </div>
 

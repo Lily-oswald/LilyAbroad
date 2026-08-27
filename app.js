@@ -1,8 +1,8 @@
 // Basic tab routing
 function showTab(tab){
   // If user wants to open the edit tab, ensure authentication first
-  if(tab==='edit'){
-    ensureAuth().then(ok=>{ if(ok){ activateTab(tab); } }).catch(()=>{}); return;
+  if(tab==='edit' || tab==='postcard-editor'){
+    ensureAuth(true).then(ok=>{ if(ok){ activateTab(tab); } }).catch(()=>{}); return;
   }
   activateTab(tab);
 }
@@ -115,9 +115,40 @@ function initMapIfNeeded(){
   }
   // fitBounds button removed — map controls simplified
   document.getElementById('playFlights').addEventListener('click', ()=>{ toggleFlightAnimation(); });
-  const openEditorBtn = document.getElementById('openEditor');
-  if(openEditorBtn){ openEditorBtn.addEventListener('click', ()=>{ showTab('edit'); }); }
+  const backupBtn = document.getElementById('backupBtn');
+  if(backupBtn){ backupBtn.addEventListener('click', ()=>{ backupToServer(); }); }
+  const restoreBtn = document.getElementById('restoreBtn');
+  if(restoreBtn){ restoreBtn.addEventListener('click', ()=>{ restoreFromServer(); }); }
+  const publishBtn = document.getElementById('publishBtn');
+  if(publishBtn){ publishBtn.addEventListener('click', ()=>{ ensureAuth().then(ok=>{ if(ok) publishToServer(); }); }); }
+  const serverSettings = document.getElementById('serverSettings');
+  if(serverSettings){ serverSettings.addEventListener('click', ()=>{ promptServerSettings(); }); }
+  updateServerInfoUI();
 }
+
+// Top-left edit button shows a small authenticated menu with options
+const topEditBtn = document.getElementById('topEditBtn');
+const editMenu = document.getElementById('editMenu');
+if(topEditBtn){
+  topEditBtn.addEventListener('click', ()=>{
+    if(editMenu){ editMenu.style.display = (editMenu.style.display==='block')? 'none' : 'block'; }
+    else { showTab('edit'); }
+  });
+}
+
+// Menu buttons
+const menuEditMap = document.getElementById('menuEditMap');
+const menuEditPostcards = document.getElementById('menuEditPostcards');
+if(menuEditMap){ menuEditMap.addEventListener('click', ()=>{ if(editMenu) editMenu.style.display='none'; showTab('edit'); }); }
+if(menuEditPostcards){ menuEditPostcards.addEventListener('click', ()=>{ if(editMenu) editMenu.style.display='none'; showTab('postcard-editor'); }); }
+
+// Hide menu when clicking outside
+document.addEventListener('click', (e)=>{
+  if(!editMenu) return;
+  const target = e.target;
+  if(target===topEditBtn || topEditBtn.contains(target) || editMenu.contains(target)) return;
+  if(editMenu.style.display==='block') editMenu.style.display='none';
+});
 
 function renderFlights(){
   flightsLayer.clearLayers();
@@ -148,6 +179,96 @@ function renderFlights(){
     const pl = L.polyline([p1,p2],{color:color,weight:3,opacity:0.9}).addTo(flightsLayer);
     flightPolylines.push(pl);
   });
+  // update timeline below the map
+  renderTimeline(flights);
+}
+
+function formatDateLabel(dstr){
+  if(!dstr) return 'TBD';
+  try{
+    const d = new Date(dstr+'T00:00:00');
+    const opts = {month:'short', day:'numeric', year:'numeric'};
+    const parts = new Intl.DateTimeFormat('en', opts).format(d).toUpperCase().split(' ');
+    // convert 'Mar 5, 2027' -> 'MAR 5 2027'
+    return parts.join(' ');
+  }catch(e){ return dstr; }
+}
+
+function formatRangeLabel(startStr, endStr){
+  if(!startStr && !endStr) return 'TBD';
+  if(!endStr) return formatDateLabel(startStr);
+  try{
+    const s = new Date(startStr+'T00:00:00');
+    const e = new Date(endStr+'T00:00:00');
+    const optsNoYear = {month:'short', day:'numeric'};
+    const optsWithYear = {month:'short', day:'numeric', year:'numeric'};
+    if(s.getFullYear() === e.getFullYear()){
+      const sLbl = new Intl.DateTimeFormat('en', optsNoYear).format(s).toUpperCase();
+      const eLbl = new Intl.DateTimeFormat('en', optsWithYear).format(e).toUpperCase();
+      // eLbl already has year; produce: 'JAN 4 - FEB 13 2027'
+      const eParts = eLbl.split(' ');
+      const eYear = eParts[eParts.length-1];
+      const eNoYear = eParts.slice(0,eParts.length-1).join(' ');
+      return `${sLbl} - ${eNoYear} ${eYear}`;
+    } else {
+      const sLbl = new Intl.DateTimeFormat('en', optsWithYear).format(s).toUpperCase();
+      const eLbl = new Intl.DateTimeFormat('en', optsWithYear).format(e).toUpperCase();
+      return `${sLbl} - ${eLbl}`;
+    }
+  }catch(e){ return (startStr||'') + (endStr?(' - '+endStr):''); }
+}
+
+function renderTimeline(flights){
+  const container = document.getElementById('timeline');
+  if(!container) return;
+  container.innerHTML = '';
+  const heading = document.createElement('div'); heading.className='heading'; heading.textContent='FULL SCHEDULE';
+  container.appendChild(heading);
+  const list = document.createElement('div'); list.className='timeline-list';
+
+  // sort flights by date, put TBD last
+  const ordered = Array.from(flights).sort((a,b)=>{
+    if(!a.date) return 1; if(!b.date) return -1;
+    return new Date(a.date) - new Date(b.date);
+  });
+
+  // Render both flights and inferred stays: for each flight, show the flight event on its date,
+  // then show the stay at the destination from that date until the next flight (or user-provided endDate)
+  if(ordered.length===0){
+    const p = document.createElement('div'); p.className='timeline-item'; p.textContent='No scheduled travel yet.'; list.appendChild(p);
+  } else {
+    for(let i=0;i<ordered.length;i++){
+      const cur = ordered[i];
+      const next = ordered[i+1];
+      // Flight event
+      const flightItem = document.createElement('div'); flightItem.className='timeline-item';
+      const flightDateEl = document.createElement('div'); flightDateEl.className='timeline-date';
+      flightDateEl.textContent = cur.date ? formatDateLabel(cur.date) : 'TBD';
+      const flightEv = document.createElement('div'); flightEv.className='timeline-event';
+      flightEv.textContent = (cur.date || true) ? ((cur.type==='flight')? `FLY TO ${cur.to.toUpperCase()}` : `${(cur.type||'TRAVEL').toUpperCase()} TO ${cur.to.toUpperCase()}`) : 'TBD';
+      flightItem.appendChild(flightDateEl); flightItem.appendChild(flightEv);
+      list.appendChild(flightItem);
+
+      // Inferred stay: start at cur.date, end at cur.endDate || next.date
+      const stayStart = cur.date || null;
+      const stayEnd = cur.endDate || (next && next.date) || null;
+      // Only render stay if we have at least some date info or to show TBD stay
+      const stayItem = document.createElement('div'); stayItem.className='timeline-item';
+      const stayDateEl = document.createElement('div'); stayDateEl.className='timeline-date';
+      stayDateEl.textContent = (stayStart || stayEnd) ? formatRangeLabel(stayStart, stayEnd) : 'TBD';
+      const stayEv = document.createElement('div'); stayEv.className='timeline-event';
+      stayEv.textContent = cur.to ? `IN ${cur.to.toUpperCase()}` : 'TBD';
+      stayItem.appendChild(stayDateEl); stayItem.appendChild(stayEv);
+      list.appendChild(stayItem);
+    }
+  }
+
+  // If no flights, show placeholder
+  if(ordered.length===0){
+    const p = document.createElement('div'); p.className='timeline-item'; p.textContent='No scheduled travel yet.'; list.appendChild(p);
+  }
+
+  container.appendChild(list);
 }
 
 // Compute a darker shade by mixing towards black. amount: 0..1
@@ -299,8 +420,8 @@ function showPasswordModal(message, needConfirm=false){
   });
 }
 
-async function ensureAuth(){
-  if(isAuthenticated()) return true;
+async function ensureAuth(requireFresh=false){
+  if(!requireFresh && isAuthenticated()) return true;
   const saved = localStorage.getItem('editPassword');
   // if there is no saved password, set the provided secret once (Travelmore10$) hashed
   if(!saved){
@@ -338,7 +459,8 @@ function renderFlightsList(){
   flightsList.innerHTML = '';
   flights.forEach((f,idx)=>{
     const li = document.createElement('li');
-    li.textContent = `${f.date?('['+f.date+'] '):''}${f.from} → ${f.to}  (${f.type || 'flight'})`;
+    const dateLabel = f.endDate ? (`[${f.date || 'TBD'} - ${f.endDate}] `) : (f.date ? (`[${f.date}] `) : '');
+    li.textContent = `${dateLabel}${f.from} → ${f.to}  (${f.type || 'flight'})`;
     const edit = document.createElement('button'); edit.textContent='Edit'; edit.style.marginLeft='8px';
     edit.addEventListener('click',()=>{ populateFormForEdit(idx); });
     const del = document.createElement('button'); del.textContent='Delete'; del.style.marginLeft='8px';
@@ -357,6 +479,7 @@ function populateFormForEdit(idx){
   flightForm.elements['to'].value = f.to;
   flightForm.elements['type'].value = f.type || 'flight';
   flightForm.elements['date'].value = f.date || '';
+  flightForm.elements['endDate'].value = f.endDate || '';
   flightForm.elements['fromCoords'].value = f.fromCoords.join(',');
   flightForm.elements['toCoords'].value = f.toCoords.join(',');
   editingIndex = idx;
@@ -375,11 +498,12 @@ flightForm.addEventListener('submit', e=>{
   const to = fd.get('to').trim();
   const type = fd.get('type') || 'flight';
   const date = fd.get('date') || '';
+  const endDate = fd.get('endDate') || '';
   const fromCoords = fd.get('fromCoords').split(',').map(s=>parseFloat(s.trim()));
   const toCoords = fd.get('toCoords').split(',').map(s=>parseFloat(s.trim()));
   if(fromCoords.length!==2||toCoords.length!==2||fromCoords.some(isNaN)||toCoords.some(isNaN)){ alert('Please enter valid coordinates.'); return; }
   const flights = loadFlights();
-  const obj = {from,to,type,date,fromCoords,toCoords};
+  const obj = {from,to,type,date,endDate,fromCoords,toCoords};
   if(editingIndex!==null){ flights[editingIndex] = obj; editingIndex = null; submitBtn.textContent='Add'; cancelBtn.style.display='none'; }
   else { flights.push(obj); }
   saveFlights(flights);
@@ -390,3 +514,323 @@ flightForm.addEventListener('submit', e=>{
 
 // If the page loads with map hash, initialize
 if(location.hash==='#map'){ showTab('map'); }
+
+// Backup / Restore to remote server
+async function backupToServer(){
+  const url = prompt('Enter backup server base URL (e.g. http://localhost:3000)');
+  if(!url) return;
+  const key = prompt('Enter backup key');
+  if(key===null) return;
+  const payload = loadFlights();
+  try{
+    const res = await fetch(url.replace(/\/$/, '') + '/backup', {
+      method: 'POST', headers: {'Content-Type':'application/json','x-backup-key': key}, body: JSON.stringify(payload)
+    });
+    if(res.ok) alert('Backup saved to server'); else { const txt=await res.text(); alert('Backup failed: '+txt); }
+  }catch(e){ alert('Backup failed: '+e.message); }
+}
+
+async function restoreFromServer(){
+  const url = prompt('Enter backup server base URL (e.g. http://localhost:3000)');
+  if(!url) return;
+  const key = prompt('Enter backup key');
+  if(key===null) return;
+  try{
+    const res = await fetch(url.replace(/\/$/, '') + '/backup', {headers:{'x-backup-key': key}});
+    if(!res.ok){ const txt=await res.text(); alert('Restore failed: '+txt); return; }
+    const data = await res.json();
+    if(!Array.isArray(data)) { alert('Restore failed: invalid data'); return; }
+    localStorage.setItem('flights', JSON.stringify(data));
+    renderFlights(); renderFlightsList(); renderTimeline(data);
+    alert('Restore complete');
+  }catch(e){ alert('Restore failed: '+e.message); }
+}
+
+// Server URL/key management (store in localStorage for editor convenience)
+function getServerConfig(){
+  try{ return JSON.parse(localStorage.getItem('serverConfig')||'{}'); }catch(e){ return {}; }
+}
+function setServerConfig(cfg){ localStorage.setItem('serverConfig', JSON.stringify(cfg||{})); updateServerInfoUI(); }
+function updateServerInfoUI(){ const info = document.getElementById('serverInfo'); if(!info) return; const cfg=getServerConfig(); info.textContent = cfg.url ? (`Server: ${cfg.url}`) : 'Server: (not set)'; }
+
+function promptServerSettings(){
+  const cfg = getServerConfig()||{};
+  const url = prompt('Backup server base URL', cfg.url||'http://localhost:3000');
+  if(url===null) return;
+  const key = prompt('Backup key (will be saved locally)', cfg.key||'');
+  if(key===null) return;
+  setServerConfig({url:url.replace(/\/$/,'') , key});
+}
+
+async function publishToServer(){
+  const cfg = getServerConfig();
+  if(!cfg || !cfg.url){ alert('Server not configured — click Server... and enter URL/key'); return; }
+  const payload = loadFlights();
+  try{
+    const res = await fetch(cfg.url + '/publish', {method:'POST', headers:{'Content-Type':'application/json','x-backup-key':cfg.key||''}, body: JSON.stringify(payload)});
+    if(res.ok) alert('Published successfully'); else { const txt=await res.text(); alert('Publish failed: '+txt); }
+  }catch(e){ alert('Publish failed: '+e.message); }
+}
+
+// Postcards
+const postcardForm = document.getElementById('postcardForm');
+const postcardImagesInput = document.getElementById('postcardImages');
+const imagePreview = document.getElementById('imagePreview');
+const postcardsList = document.getElementById('postcardsList');
+const postcardsEditorList = document.getElementById('postcardsEditorList');
+const postcardCancelBtn = document.getElementById('postcardCancel');
+const postcardCoverSelect = document.getElementById('postcardCoverSelect');
+const postcardModal = document.getElementById('postcardModal');
+const postcardModalClose = document.getElementById('postcardModalClose');
+const postcardModalCover = document.getElementById('postcardModalCover');
+const postcardModalTitle = document.getElementById('postcardModalTitle');
+const postcardModalDates = document.getElementById('postcardModalDates');
+const postcardModalText = document.getElementById('postcardModalText');
+const postcardModalImages = document.getElementById('postcardModalImages');
+
+const POSTCARDS_KEY = 'postcards';
+const MAX_EXTRA_IMAGES = 4;
+
+function loadPostcards(){
+  const raw = localStorage.getItem(POSTCARDS_KEY);
+  if(!raw) return [];
+  try{
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function savePostcards(items){
+  localStorage.setItem(POSTCARDS_KEY, JSON.stringify(items || []));
+}
+
+function formatPostcardDateRange(startDate, endDate){
+  if(!startDate && !endDate) return 'Dates not set';
+  if(startDate && !endDate) return formatDateLabel(startDate);
+  if(!startDate && endDate) return formatDateLabel(endDate);
+  return formatRangeLabel(startDate, endDate);
+}
+
+function escapeHtml(str){
+  return String(str || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function renderPostcardsList(){
+  if(!postcardsList) return;
+  const cards = loadPostcards();
+  postcardsList.innerHTML = '';
+  if(cards.length===0){
+    const empty = document.createElement('div');
+    empty.className = 'postcards-list-empty';
+    empty.textContent = 'No postcards yet.';
+    postcardsList.appendChild(empty);
+    return;
+  }
+
+  cards.forEach(card=>{
+    const el = document.createElement('article');
+    el.className = 'postcard';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    const title = escapeHtml(card.city || 'Unknown City');
+    const cover = escapeHtml(card.coverImage || '');
+    el.innerHTML = `
+      <img src="${cover}" alt="${title} postcard cover">
+    `;
+    const open = ()=>openPostcardModal(card);
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(); }
+    });
+    postcardsList.appendChild(el);
+  });
+}
+
+function renderPostcardsEditorList(){
+  if(!postcardsEditorList) return;
+  const cards = loadPostcards();
+  postcardsEditorList.innerHTML = '';
+  if(cards.length===0){
+    const li = document.createElement('li');
+    li.textContent = 'No saved postcards yet.';
+    postcardsEditorList.appendChild(li);
+    return;
+  }
+
+  cards.forEach((card, idx)=>{
+    const li = document.createElement('li');
+    li.textContent = `${card.city || 'Unknown City'} — ${formatPostcardDateRange(card.startDate, card.endDate)}`;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', ()=>{
+      const next = loadPostcards();
+      next.splice(idx, 1);
+      savePostcards(next);
+      renderPostcardsEditorList();
+      renderPostcardsList();
+    });
+    li.appendChild(del);
+    postcardsEditorList.appendChild(li);
+  });
+}
+
+function openPostcardModal(card){
+  if(!postcardModal) return;
+  postcardModalCover.src = card.coverImage || '';
+  postcardModalCover.alt = `${card.city || 'Postcard'} cover`;
+  postcardModalTitle.textContent = (card.city || 'Unknown City').toUpperCase();
+  postcardModalDates.textContent = formatPostcardDateRange(card.startDate, card.endDate);
+  postcardModalText.textContent = card.text || '';
+  postcardModalImages.innerHTML = '';
+  (card.images || []).forEach((src, i)=>{
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `${card.city || 'Postcard'} detail image ${i+1}`;
+    postcardModalImages.appendChild(img);
+  });
+  postcardModal.style.display = 'flex';
+}
+
+function closePostcardModal(){
+  if(!postcardModal) return;
+  postcardModal.style.display = 'none';
+}
+
+async function fileToDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result || ''));
+    reader.onerror = ()=>reject(new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function readImagesAsDataUrls(fileList){
+  const files = Array.from(fileList || []);
+  const items = [];
+  for(const f of files){
+    const data = await fileToDataUrl(f);
+    items.push(data);
+  }
+  return items;
+}
+
+async function loadPostcardCovers(){
+  if(!postcardCoverSelect) return;
+  const fallback = [
+    'athenspostcard.jpg',
+    'barcelonapostcard.jpg',
+    'lisbonpostcard.jpg',
+    'madridpostcard.jpg',
+    'mykonospostcard.jpg'
+  ];
+
+  let covers = fallback;
+  try{
+    const res = await fetch('assets/postcards/manifest.json');
+    if(res.ok){
+      const parsed = await res.json();
+      if(Array.isArray(parsed) && parsed.length>0) covers = parsed;
+    }
+  }catch(e){
+    // Keep fallback list when manifest is unavailable.
+  }
+
+  postcardCoverSelect.innerHTML = '<option value="">Select cover image</option>';
+  covers.forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = `assets/postcards/${name}`;
+    opt.textContent = name;
+    postcardCoverSelect.appendChild(opt);
+  });
+}
+
+if(postcardImagesInput){
+  postcardImagesInput.addEventListener('change', ()=>{
+    const files = Array.from(postcardImagesInput.files || []);
+    if(files.length > MAX_EXTRA_IMAGES){
+      alert(`Please select up to ${MAX_EXTRA_IMAGES} additional images.`);
+      postcardImagesInput.value = '';
+      imagePreview.innerHTML = '';
+      return;
+    }
+    imagePreview.innerHTML = '';
+    files.forEach(file=>{
+      const url = URL.createObjectURL(file);
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = file.name;
+      imagePreview.appendChild(img);
+    });
+  });
+}
+
+if(postcardCancelBtn){
+  postcardCancelBtn.addEventListener('click', ()=>{
+    postcardForm.reset();
+    imagePreview.innerHTML = '';
+  });
+}
+
+if(postcardForm){
+  postcardForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const fd = new FormData(postcardForm);
+    const city = String(fd.get('city') || '').trim();
+    const startDate = String(fd.get('startDate') || '').trim();
+    const endDate = String(fd.get('endDate') || '').trim();
+    const text = String(fd.get('text') || '').trim();
+    const coverImage = String(fd.get('coverImage') || '').trim();
+    const files = Array.from(postcardImagesInput.files || []);
+
+    if(!city){ alert('City is required.'); return; }
+    if(!coverImage){ alert('Please select a cover image from assets/postcards.'); return; }
+    if(files.length > MAX_EXTRA_IMAGES){ alert(`Please select up to ${MAX_EXTRA_IMAGES} additional images.`); return; }
+    if(startDate && endDate && new Date(endDate) < new Date(startDate)){ alert('End date must be on or after start date.'); return; }
+
+    const extraImages = await readImagesAsDataUrls(files);
+    const card = {
+      id: `pc_${Date.now()}`,
+      city,
+      startDate,
+      endDate,
+      text,
+      coverImage,
+      images: extraImages,
+      createdAt: new Date().toISOString()
+    };
+
+    const all = loadPostcards();
+    all.unshift(card);
+    savePostcards(all);
+    postcardForm.reset();
+    imagePreview.innerHTML = '';
+    renderPostcardsEditorList();
+    renderPostcardsList();
+    alert('Postcard saved.');
+  });
+}
+
+if(postcardModalClose){
+  postcardModalClose.addEventListener('click', closePostcardModal);
+}
+if(postcardModal){
+  postcardModal.addEventListener('click', (e)=>{
+    if(e.target === postcardModal) closePostcardModal();
+  });
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape' && postcardModal && postcardModal.style.display==='flex') closePostcardModal();
+});
+
+loadPostcardCovers().then(()=>{});
+renderPostcardsEditorList();
+renderPostcardsList();

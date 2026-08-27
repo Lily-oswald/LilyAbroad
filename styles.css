@@ -7,7 +7,7 @@
 body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 .site-header{background:linear-gradient(90deg,var(--brown-1),var(--brown-2));color:var(--text-light);padding:12px 24px;position:relative;z-index:2000}
 .nav-list{list-style:none;margin:0;padding:0;display:flex;gap:18px;justify-content:flex-end}
-.nav-list a{color:var(--text-light);text-decoration:none;letter-spacing:2px}
+.nav-list a{color:var(--text-light);text-decoration:none;letter-spacing:6px;font-family:Montserrat,system-ui,Arial;font-size:14px;text-transform:uppercase}
 .nav-list a.active{font-weight:600}
 
 .hero{position:relative;height:72vh;min-height:520px;overflow:hidden}
@@ -67,3 +67,47 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
   .site-header{padding:8px}
   .nav-list{gap:8px}
 }
+
+/* Top-left edit button */
+.top-edit-button{position:absolute;left:12px;top:12px;background:transparent;border:none;color:var(--text-light);padding:6px 10px;border-radius:6px;font-family:Montserrat,system-ui,Arial;letter-spacing:6px;font-size:14px;text-transform:uppercase}
+.top-edit-button:hover{background:rgba(255,250,245,0.03)}
+
+/* small edit menu under the top edit button */
+.edit-menu{position:absolute;left:12px;top:44px;background:var(--text-light);color:#2b1f18;border-radius:8px;padding:8px;box-shadow:0 6px 18px rgba(0,0,0,0.2);z-index:2500}
+.edit-menu .edit-menu-btn{display:block;background:transparent;border:none;padding:8px 12px;width:220px;text-align:left;border-radius:6px;font-family:Montserrat,system-ui,Arial;cursor:pointer}
+.edit-menu .edit-menu-btn:hover{background:rgba(98,62,42,0.06)}
+
+/* Timeline styles */
+.timeline{margin:18px 0 36px;border-radius:8px;background:var(--brown-1);color:var(--text-light);padding:28px}
+.timeline .heading{text-align:center;font-size:18px;letter-spacing:6px;margin-bottom:18px}
+.timeline-list{display:block;row-gap:8px}
+.timeline-item{display:grid;grid-template-columns:200px 1fr;gap:0 24px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,250,245,0.05)}
+.timeline-date{font-size:14px;letter-spacing:2px;opacity:0.95;justify-self:start;text-align:left}
+.timeline-event{font-size:14px;text-transform:uppercase;letter-spacing:2px;justify-self:end;text-align:right}
+
+@media(max-width:800px){
+  .timeline{padding:18px}
+}
+
+/* Postcards */
+.postcards-container{padding:18px}
+.postcards-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.postcard{background:linear-gradient(180deg, rgba(98,62,42,0.06), rgba(98,62,42,0.02));padding:12px;border-radius:8px;color:#2b1f18;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease;display:flex;justify-content:center;align-items:center}
+.postcard:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(98,62,42,0.12)}
+.postcard img{width:min(100%,300px);height:auto;max-height:none;object-fit:contain;border-radius:6px;display:block;margin:0 auto}
+.postcards-list-empty{padding:28px;text-align:center;color:#7a5b4b}
+
+.editor label{display:block;margin-bottom:8px}
+#imagePreview img{width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,0,0,0.06)}
+#postcardsEditorList li{padding:8px 0;border-bottom:1px dashed #eee}
+#postcardsEditorList button{margin-left:8px}
+
+.postcard-modal{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:2600;padding:18px}
+.postcard-modal-content{width:min(860px,100%);max-height:90vh;overflow:auto;background:#fff9f4;border-radius:10px;padding:18px;box-shadow:0 12px 36px rgba(0,0,0,0.3)}
+.postcard-modal-close{background:var(--brown-1);color:var(--text-light);border:none;padding:8px 12px;border-radius:6px;float:right}
+#postcardModalCover{width:100%;max-height:360px;object-fit:cover;border-radius:8px;margin-top:12px}
+#postcardModalTitle{margin:12px 0 4px 0;color:#2b1f18;letter-spacing:2px;text-transform:uppercase}
+.postcard-modal-dates{color:var(--brown-1);font-size:14px;letter-spacing:1px;margin-bottom:10px}
+#postcardModalText{color:#3b2b23;line-height:1.5}
+.postcard-modal-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}
+.postcard-modal-images img{width:100%;height:140px;object-fit:cover;border-radius:8px}
