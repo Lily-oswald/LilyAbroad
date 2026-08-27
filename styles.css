@@ -10,7 +10,7 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 .nav-list a{color:var(--text-light);text-decoration:none;letter-spacing:6px;font-family:Montserrat,system-ui,Arial;font-size:14px;text-transform:uppercase}
 .nav-list a.active{font-weight:600}
 
-.hero{position:relative;height:72vh;min-height:520px;overflow:hidden}
+.hero{position:relative;height:72vh;min-height:100%;overflow:hidden}
 .slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1s ease}
 .slide.active{opacity:1}
 .hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg, rgba(98,62,42,0.25) 0%, rgba(98,62,42,0.45) 70%)}
