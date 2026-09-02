@@ -9,15 +9,28 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 .nav-list{list-style:none;margin:0;padding:0;display:flex;gap:18px;justify-content:flex-end}
 .nav-list a{color:var(--text-light);text-decoration:none;letter-spacing:6px;font-family:Montserrat,system-ui,Arial;font-size:14px;text-transform:uppercase}
 .nav-list a.active{font-weight:600}
+.mobile-nav{display:none}
 
 .hero{position:relative;height:72vh;min-height:100%;overflow:hidden}
 .slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1s ease}
 .slide.active{opacity:1}
-.hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg, rgba(98,62,42,0.25) 0%, rgba(98,62,42,0.45) 70%)}
-.hero-text{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);text-align:center;color:var(--text-light)}
+.hero-overlay{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:1;background:linear-gradient(180deg, rgba(98,62,42,0.25) 0%, rgba(98,62,42,0.45) 70%)}
+.hero-text{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);z-index:2;text-align:center;color:var(--text-light)}
 .season{letter-spacing:6px;font-size:14px;margin-bottom:12px}
 .title{font-family:'Great Vibes',cursive;font-size:120px;margin:0;line-height:0.85;text-transform:none}
 .subtitle{letter-spacing:4px;margin-top:18px}
+
+.world-clocks{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:18px;max-width:900px;margin:18px auto 0;padding:0 8px}
+.world-clock{background:linear-gradient(180deg, rgba(98,62,42,0.92), rgba(98,62,42,0.76));color:var(--text-light);border-radius:10px;padding:14px 10px;text-align:center;box-shadow:0 10px 24px rgba(0,0,0,0.16)}
+.world-clock-city{margin:0 0 10px 0;letter-spacing:2px;font-size:16px;text-transform:uppercase}
+.clock-icon{position:relative;width:66px;height:66px;margin:0 auto 10px auto}
+.clock-face{position:absolute;inset:0;border:2px solid rgba(246,239,232,0.95);border-radius:50%;background:radial-gradient(circle at 35% 35%, rgba(246,239,232,0.35), rgba(246,239,232,0.05))}
+.clock-hand{position:absolute;left:50%;bottom:50%;transform-origin:bottom center;border-radius:999px;background:rgba(246,239,232,0.96)}
+.clock-hour{width:4px;height:18px;margin-left:-2px}
+.clock-minute{width:2px;height:25px;margin-left:-1px}
+.clock-center{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;margin-left:-4px;margin-top:-4px;background:rgba(246,239,232,0.98)}
+.world-clock-digital{font-size:20px;letter-spacing:1px;font-weight:600}
+.world-clock-date{margin-top:6px;font-size:13px;letter-spacing:1px;opacity:0.96}
 
 .tab-panel{display:none;padding:28px}
 .tab-panel.active{display:block}
@@ -65,11 +78,15 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 @media(max-width:800px){
   .title{font-size:56px}
   .site-header{padding:8px}
-  .nav-list{gap:8px}
+  .site-header nav{display:flex;justify-content:flex-end}
+  .nav-list{display:none}
+  .mobile-nav{display:block;width:180px;max-width:60vw;margin:0;background:rgba(246,239,232,0.12);color:var(--text-light);border:1px solid rgba(246,239,232,0.45);border-radius:6px;padding:6px 8px;font-family:Montserrat,system-ui,Arial;font-size:13px}
+  .mobile-nav option{color:#2b1f18}
+  .world-clocks{grid-template-columns:1fr;max-width:360px;gap:12px}
 }
 
 /* Top-left edit button */
-.top-edit-button{position:absolute;left:12px;top:12px;background:transparent;border:none;color:var(--text-light);padding:6px 10px;border-radius:6px;font-family:Montserrat,system-ui,Arial;letter-spacing:6px;font-size:14px;text-transform:uppercase}
+.top-edit-button{position:absolute;left:12px;top:12px;background:transparent;border:none;color:var(--text-light);padding:3px 6px;border-radius:6px;font-family:Montserrat,system-ui,Arial;letter-spacing:2px;font-size:10px;text-transform:uppercase}
 .top-edit-button:hover{background:rgba(255,250,245,0.03)}
 
 /* small edit menu under the top edit button */

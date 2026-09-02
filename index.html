@@ -17,6 +17,11 @@
         <li><a href="#map" class="tab-link" data-tab="map">Map</a></li>
         <li><a href="#postcards" class="tab-link" data-tab="postcards">Postcards</a></li>
       </ul>
+      <select id="mobileNav" class="mobile-nav" aria-label="Navigate tabs">
+        <option value="home">Home</option>
+        <option value="map">Map</option>
+        <option value="postcards">Postcards</option>
+      </select>
     </nav>
     <div id="editMenu" class="edit-menu" style="display:none;">
       <button id="menuEditMap" class="edit-menu-btn">Edit Map & Travel</button>
@@ -26,18 +31,53 @@
 
   <main>
     <section id="home" class="tab-panel active">
-      <div id="slideshow" class="hero">
-        <!-- Slides will be populated automatically from assets/images/manifest.json if present.
-             To update slides after adding images, run: `node scripts/generate-manifest.js` which
-             writes assets/images/manifest.json listing files in the folder. -->
-      </div>
-        <div class="hero-overlay">
-          <div class="hero-text">
-            <div class="season">SPRING 2027</div>
-            <h1 class="title">lily abroad</h1>
-            <div class="subtitle">BARCELONA & ATHENS</div>
-          </div>
+      <div class="hero">
+        <div id="slideshow">
+          <!-- Slides will be populated automatically from assets/images/manifest.json if present.
+               To update slides after adding images, run: `node scripts/generate-manifest.js` which
+               writes assets/images/manifest.json listing files in the folder. -->
         </div>
+        <div class="hero-overlay" aria-hidden="true"></div>
+        <div class="hero-text">
+          <div class="season">SPRING 2027</div>
+          <h1 class="title">lily abroad</h1>
+          <div class="subtitle">BARCELONA & ATHENS</div>
+        </div>
+      </div>
+      <div class="world-clocks" aria-label="World clocks">
+        <article class="world-clock" data-timezone="America/Chicago">
+          <h3 class="world-clock-city">Chicago</h3>
+          <div class="clock-icon" aria-hidden="true">
+            <span class="clock-face"></span>
+            <span class="clock-hand clock-hour"></span>
+            <span class="clock-hand clock-minute"></span>
+            <span class="clock-center"></span>
+          </div>
+          <div class="world-clock-digital" data-role="time">--:-- --</div>
+          <div class="world-clock-date" data-role="date">Loading date...</div>
+        </article>
+        <article class="world-clock" data-timezone="Europe/Madrid">
+          <h3 class="world-clock-city">Barcelona</h3>
+          <div class="clock-icon" aria-hidden="true">
+            <span class="clock-face"></span>
+            <span class="clock-hand clock-hour"></span>
+            <span class="clock-hand clock-minute"></span>
+            <span class="clock-center"></span>
+          </div>
+          <div class="world-clock-digital" data-role="time">--:-- --</div>
+          <div class="world-clock-date" data-role="date">Loading date...</div>
+        </article>
+        <article class="world-clock" data-timezone="Europe/Athens">
+          <h3 class="world-clock-city">Athens</h3>
+          <div class="clock-icon" aria-hidden="true">
+            <span class="clock-face"></span>
+            <span class="clock-hand clock-hour"></span>
+            <span class="clock-hand clock-minute"></span>
+            <span class="clock-center"></span>
+          </div>
+          <div class="world-clock-digital" data-role="time">--:-- --</div>
+          <div class="world-clock-date" data-role="date">Loading date...</div>
+        </article>
       </div>
     </section>
 

@@ -11,6 +11,8 @@ function activateTab(tab){
   document.querySelectorAll('.tab-link').forEach(l=>l.classList.remove('active'));
   const navLink = document.querySelector('.tab-link[data-tab="'+tab+'"]');
   if(navLink) navLink.classList.add('active');
+  const mobileNav = document.getElementById('mobileNav');
+  if(mobileNav && mobileNav.value !== tab) mobileNav.value = tab;
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById(tab);
   if(panel) panel.classList.add('active');
@@ -23,6 +25,13 @@ document.querySelectorAll('.tab-link').forEach(link=>{
       showTab(link.dataset.tab);
   });
 });
+
+const mobileNav = document.getElementById('mobileNav');
+if(mobileNav){
+  mobileNav.addEventListener('change', ()=>{
+    showTab(mobileNav.value);
+  });
+}
 
 // Slideshow
 // Slideshow - populate from manifest if available, otherwise use defaults embedded earlier
@@ -69,6 +78,69 @@ function startSlideshow(){
 }
 
 loadSlides().then(startSlideshow).catch(()=>{});
+
+// Home world clocks
+function initWorldClocks(){
+  const clockCards = Array.from(document.querySelectorAll('.world-clock'));
+  if(clockCards.length===0) return;
+
+  clockCards.forEach(card=>{
+    const zone = card.dataset.timezone;
+    card._clockFormatters = {
+      time: new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      }),
+      date: new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        weekday: 'short',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      parts: new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+    };
+  });
+
+  function updateWorldClocks(){
+    const now = new Date();
+    clockCards.forEach(card=>{
+      const fmts = card._clockFormatters;
+      const timeEl = card.querySelector('[data-role="time"]');
+      const dateEl = card.querySelector('[data-role="date"]');
+      const hourHand = card.querySelector('.clock-hour');
+      const minuteHand = card.querySelector('.clock-minute');
+
+      if(timeEl) timeEl.textContent = fmts.time.format(now).toUpperCase();
+      if(dateEl) dateEl.textContent = fmts.date.format(now);
+
+      const parts = fmts.parts.formatToParts(now);
+      const hour = parseInt(parts.find(p=>p.type==='hour')?.value || '0', 10);
+      const minute = parseInt(parts.find(p=>p.type==='minute')?.value || '0', 10);
+      const second = parseInt(parts.find(p=>p.type==='second')?.value || '0', 10);
+
+      const hourDegrees = ((hour % 12) + minute / 60) * 30;
+      const minuteDegrees = (minute + second / 60) * 6;
+
+      if(hourHand) hourHand.style.transform = `rotate(${hourDegrees}deg)`;
+      if(minuteHand) minuteHand.style.transform = `rotate(${minuteDegrees}deg)`;
+    });
+  }
+
+  updateWorldClocks();
+  setInterval(updateWorldClocks, 1000);
+}
+
+initWorldClocks();
 
 // Map and flights
 let mapInitialized = false;
