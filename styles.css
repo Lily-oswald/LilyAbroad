@@ -128,3 +128,8 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 #postcardModalText{color:#3b2b23;line-height:1.5}
 .postcard-modal-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}
 .postcard-modal-images img{width:100%;height:140px;object-fit:cover;border-radius:8px}
+
+/* Current weather below each city date */
+.world-clock-weather{margin-top:10px;font-size:14px;line-height:1.6;min-height:2.8em}
+.weather-credit{position:relative;z-index:2;text-align:center;margin-top:12px;font-size:11px;color:var(--brown-1)}
+.weather-credit a{color:inherit;text-underline-offset:2px}

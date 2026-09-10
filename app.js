@@ -142,6 +142,56 @@ function initWorldClocks(){
 
 initWorldClocks();
 
+// Current conditions from Open-Meteo, refreshed every 15 minutes.
+function weatherDescription(code){
+  const descriptions = {
+    0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+    45: 'Fog', 48: 'Freezing fog',
+    51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+    56: 'Light freezing drizzle', 57: 'Freezing drizzle',
+    61: 'Light rain', 63: 'Rain', 65: 'Heavy rain',
+    66: 'Light freezing rain', 67: 'Freezing rain',
+    71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow grains',
+    80: 'Light showers', 81: 'Rain showers', 82: 'Heavy showers',
+    85: 'Light snow showers', 86: 'Heavy snow showers',
+    95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Thunderstorm with heavy hail'
+  };
+  return descriptions[code] || 'Conditions unavailable';
+}
+
+async function updateWorldWeather(){
+  await Promise.all(Array.from(document.querySelectorAll('.world-clock')).map(async card=>{
+    const weatherEl = card.querySelector('[data-role="weather"]');
+    if(!weatherEl) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 10000);
+    try{
+      const params = new URLSearchParams({
+        latitude: card.dataset.latitude,
+        longitude: card.dataset.longitude,
+        current: 'temperature_2m,weather_code',
+        temperature_unit: 'celsius'
+      });
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+        signal: controller.signal
+      });
+      if(!response.ok) throw new Error('Weather request failed');
+      const data = await response.json();
+      const temperature = data.current?.temperature_2m;
+      if(!Number.isFinite(temperature)) throw new Error('Missing temperature');
+      const fahrenheit = Math.round(temperature * 9 / 5 + 32);
+      weatherEl.textContent = `${fahrenheit}°F / ${Math.round(temperature)}°C · ${weatherDescription(data.current.weather_code)}`;
+    }catch(e){
+      weatherEl.textContent = 'Weather unavailable';
+    }finally{
+      clearTimeout(timeout);
+    }
+  }));
+}
+
+updateWorldWeather();
+setInterval(updateWorldWeather, 15 * 60 * 1000);
+
 // Map and flights
 let mapInitialized = false;
 let map, flightsLayer;
