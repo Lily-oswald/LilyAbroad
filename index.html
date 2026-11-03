@@ -89,10 +89,12 @@
       <div class="map-container">
         <div id="mapid"></div>
         <div class="map-controls">
+          <button id="previousFlight" type="button" aria-label="Previous travel leg">Previous</button>
           <button id="playFlights">Play</button>
+          <button id="nextFlight" type="button" aria-label="Next travel leg">Next</button>
         </div>
         <div class="map-bottom-bar">
-          <div class="transport-display">Date: <span id="currentTransport">—</span></div>
+          <div class="transport-display">Now playing: <span id="currentTransport" aria-live="polite">—</span></div>
           <input id="progressSlider" type="range" min="0" max="100" value="0">
         </div>
       </div>
@@ -147,7 +149,19 @@
           <div id="serverInfo" style="margin-left:8px;font-size:13px;opacity:0.9"></div>
         </div>
         <form id="flightForm">
+          <label>From Airport Code:
+            <span class="airport-lookup-row">
+              <input name="fromAirportCode" maxlength="3" placeholder="e.g. ORD" autocomplete="off">
+              <button type="button" id="lookupFromAirport">Find</button>
+            </span>
+          </label>
           <label>From (city): <input name="from" required></label>
+          <label>To Airport Code:
+            <span class="airport-lookup-row">
+              <input name="toAirportCode" maxlength="3" placeholder="e.g. BCN" autocomplete="off">
+              <button type="button" id="lookupToAirport">Find</button>
+            </span>
+          </label>
           <label>To (city): <input name="to" required></label>
           <label>Type:
             <select name="type">
@@ -162,7 +176,9 @@
           <label>To Lat,Lon: <input name="toCoords" placeholder="lat,lon" required></label>
           <button type="submit" id="submitBtn">Add</button>
           <button type="button" id="cancelEdit" style="display:none;margin-left:8px;">Cancel</button>
+          <div id="airportLookupStatus" class="airport-lookup-status" role="status" aria-live="polite"></div>
         </form>
+        <div class="airport-data-credit">Airport lookup data © OpenStreetMap contributors</div>
         <h3>Saved Travel Paths</h3>
         <ul id="flightsList"></ul>
       </div>

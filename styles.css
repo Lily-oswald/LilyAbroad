@@ -39,6 +39,8 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 #mapid{height:100%;border-radius:6px}
 .map-controls{position:absolute;right:12px;top:12px;z-index:1000}
 .map-controls button{background:var(--brown-1);color:var(--text-light);border:none;padding:8px 12px;border-radius:4px;margin-left:8px}
+.map-controls button:hover{background:var(--brown-2)}
+.map-controls button:focus-visible{outline:2px solid white;outline-offset:2px}
 .plane-icon{font-size:18px;line-height:18px;text-align:center}
 .transport-emoji{font-size:18px}
 
@@ -53,6 +55,11 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
 .editor button{background:var(--brown-2);color:var(--text-light);padding:8px 12px;border:none;border-radius:4px}
 .editor ul{list-style:none;padding:0}
 .editor li{padding:8px 0;border-bottom:1px dashed #eee}
+.airport-lookup-row{display:flex;gap:6px}
+.airport-lookup-row input{min-width:0;flex:1}
+.airport-lookup-row button{flex:0 0 auto}
+.airport-lookup-status{flex-basis:100%;min-height:1.2em;font-size:13px;color:var(--brown-1)}
+.airport-data-credit{margin-top:4px;font-size:11px;color:#7a5b4b}
 
 .map-bottom-bar{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(255,250,245,0.9);padding:8px;border-radius:8px;display:flex;align-items:center;gap:12px;z-index:1000}
 .map-bottom-bar input[type=range]{flex:1}
@@ -83,6 +90,10 @@ body,html{height:100%;margin:0;font-family:Montserrat,system-ui,Arial}
   .mobile-nav{display:block;width:180px;max-width:60vw;margin:0;background:rgba(246,239,232,0.12);color:var(--text-light);border:1px solid rgba(246,239,232,0.45);border-radius:6px;padding:6px 8px;font-family:Montserrat,system-ui,Arial;font-size:13px}
   .mobile-nav option{color:#2b1f18}
   .world-clocks{grid-template-columns:1fr;max-width:360px;gap:12px}
+  .map-controls{left:8px;right:8px;top:8px;display:flex;justify-content:flex-end}
+  .map-controls button{padding:7px 9px;margin-left:5px}
+  .map-bottom-bar{flex-wrap:wrap}
+  .transport-display{flex-basis:100%}
 }
 
 /* Top-left edit button */

@@ -204,13 +204,41 @@ const defaultFlights = [
   {from:'Athens',to:'Chicago',type:'flight',date:'2027-04-02',fromCoords:[37.9838,23.7275],toCoords:[41.8781,-87.6298]}
 ];
 
-function loadFlights(){
-  const raw = localStorage.getItem('flights');
-  if(!raw) { localStorage.setItem('flights', JSON.stringify(defaultFlights)); return defaultFlights; }
-  try{return JSON.parse(raw)}catch(e){localStorage.setItem('flights', JSON.stringify(defaultFlights)); return defaultFlights}
+function sortFlightsChronologically(flights){
+  return Array.from(flights || []).sort((a,b)=>{
+    const aDate = a && a.date ? a.date : null;
+    const bDate = b && b.date ? b.date : null;
+    if(!aDate && !bDate) return 0;
+    if(!aDate) return 1;
+    if(!bDate) return -1;
+    return aDate.localeCompare(bDate);
+  });
 }
 
-function saveFlights(flights){ localStorage.setItem('flights', JSON.stringify(flights)); }
+function loadFlights(){
+  const raw = localStorage.getItem('flights');
+  if(!raw) {
+    const flights = sortFlightsChronologically(defaultFlights);
+    localStorage.setItem('flights', JSON.stringify(flights));
+    return flights;
+  }
+  try{
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed)) throw new Error('Invalid flights data');
+    const flights = sortFlightsChronologically(parsed);
+    // Keep older saved data normalized after the next load as well.
+    if(JSON.stringify(flights)!==raw) localStorage.setItem('flights', JSON.stringify(flights));
+    return flights;
+  }catch(e){
+    const flights = sortFlightsChronologically(defaultFlights);
+    localStorage.setItem('flights', JSON.stringify(flights));
+    return flights;
+  }
+}
+
+function saveFlights(flights){
+  localStorage.setItem('flights', JSON.stringify(sortFlightsChronologically(flights)));
+}
 
 function initMapIfNeeded(){
   if(mapInitialized) return;
@@ -237,6 +265,8 @@ function initMapIfNeeded(){
   }
   // fitBounds button removed — map controls simplified
   document.getElementById('playFlights').addEventListener('click', ()=>{ toggleFlightAnimation(); });
+  document.getElementById('previousFlight').addEventListener('click', ()=>{ changePlaybackLeg(-1); });
+  document.getElementById('nextFlight').addEventListener('click', ()=>{ changePlaybackLeg(1); });
   const backupBtn = document.getElementById('backupBtn');
   if(backupBtn){ backupBtn.addEventListener('click', ()=>{ backupToServer(); }); }
   const restoreBtn = document.getElementById('restoreBtn');
@@ -272,6 +302,39 @@ document.addEventListener('click', (e)=>{
   if(editMenu.style.display==='block') editMenu.style.display='none';
 });
 
+function greatCirclePoints(fromCoords, toCoords, segments=160){
+  const toRadians = degrees=>degrees * Math.PI / 180;
+  const toDegrees = radians=>radians * 180 / Math.PI;
+  const lat1 = toRadians(fromCoords[0]);
+  const lon1 = toRadians(fromCoords[1]);
+  const lat2 = toRadians(toCoords[0]);
+  const lon2 = toRadians(toCoords[1]);
+  const angle = 2 * Math.asin(Math.sqrt(
+    Math.sin((lat2-lat1)/2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2-lon1)/2) ** 2
+  ));
+
+  if(angle < 0.000001) return [fromCoords, toCoords];
+  const sinAngle = Math.sin(angle);
+  const points = [];
+  let previousLongitude = fromCoords[1];
+  for(let i=0; i<=segments; i++){
+    const fraction = i / segments;
+    const a = Math.sin((1-fraction) * angle) / sinAngle;
+    const b = Math.sin(fraction * angle) / sinAngle;
+    const x = a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2);
+    const y = a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2);
+    const z = a * Math.sin(lat1) + b * Math.sin(lat2);
+    const latitude = toDegrees(Math.atan2(z, Math.sqrt(x*x + y*y)));
+    let longitude = toDegrees(Math.atan2(y, x));
+    while(longitude - previousLongitude > 180) longitude -= 360;
+    while(longitude - previousLongitude < -180) longitude += 360;
+    points.push([latitude, longitude]);
+    previousLongitude = longitude;
+  }
+  return points;
+}
+
 function renderFlights(){
   flightsLayer.clearLayers();
   flightMarkers = [];
@@ -280,17 +343,25 @@ function renderFlights(){
   // place unique location pins
   const locMap = {};
   flights.forEach(f=>{
-    locMap[f.from] = f.fromCoords;
-    locMap[f.to] = f.toCoords;
+    locMap[f.fromCoords.join(',')] = {name:f.from, code:f.fromAirportCode, coords:f.fromCoords};
+    locMap[f.toCoords.join(',')] = {name:f.to, code:f.toAirportCode, coords:f.toCoords};
   });
-  Object.keys(locMap).forEach(name=>{
-    const mk = L.circleMarker(locMap[name], {
+  Object.values(locMap).forEach(location=>{
+    const mk = L.circleMarker(location.coords, {
       radius: 6,
       fillColor: '#BD8371',
       color: '#623E2A',
       weight: 1,
       fillOpacity: 1
-    }).addTo(flightsLayer).bindPopup(name);
+    }).addTo(flightsLayer);
+    const popup = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = location.code ? `${location.code} · ${location.name}` : location.name;
+    const coords = document.createElement('div');
+    coords.textContent = `${location.coords[0].toFixed(4)}, ${location.coords[1].toFixed(4)}`;
+    popup.append(title, coords);
+    mk.bindPopup(popup);
+    if(location.code) mk.bindTooltip(location.code, {direction:'top', offset:[0,-6]});
     flightMarkers.push(mk);
   });
   // draw legs
@@ -298,7 +369,7 @@ function renderFlights(){
     const p1 = f.fromCoords;
     const p2 = f.toCoords;
     const color = (f.type==='train')? '#4A6B8B' : (f.type==='boat')? '#2E8B57' : '#8B5E4A';
-    const pl = L.polyline([p1,p2],{color:color,weight:3,opacity:0.9}).addTo(flightsLayer);
+    const pl = L.polyline(greatCirclePoints(p1, p2),{color:color,weight:3,opacity:0}).addTo(flightsLayer);
     flightPolylines.push(pl);
   });
   // update timeline below the map
@@ -430,71 +501,118 @@ function updateMapBrownsByProgress(percent){
 
 // Animation state
 let isAnimating = false;
+let isPaused = false;
+let playbackIndex = 0;
+let playbackRunId = 0;
 let animMarker = null;
 let animLine = null;
-let animCancel = null;
 
 function createTransportIcon(type){
   const emoji = (type==='train')? '🚆' : (type==='boat')? '⛴️' : '✈️';
   return L.divIcon({className:'plane-icon', html:`<span class="transport-emoji">${emoji}</span>`, iconSize:[28,28]});
 }
 
+function transportPlaybackLabel(leg){
+  const type = leg.type || 'flight';
+  const emoji = type==='train' ? '🚆' : type==='boat' ? '⛴️' : '✈️';
+  const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+  let dateLabel = '';
+  if(leg.date){
+    try{
+      const date = new Date(`${leg.date}T00:00:00`);
+      dateLabel = new Intl.DateTimeFormat('en', {month:'short', day:'numeric'}).format(date);
+    }catch(e){}
+  }
+  const fromLabel = leg.fromAirportCode ? `${leg.fromAirportCode} (${leg.from})` : leg.from;
+  const toLabel = leg.toAirportCode ? `${leg.toAirportCode} (${leg.to})` : leg.to;
+  return `${emoji} ${typeLabel} · ${fromLabel} → ${toLabel}${dateLabel ? ` · ${dateLabel}` : ''}`;
+}
+
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-async function animateFlightsSequentially(){
+function focusMapOnLeg(routePoints){
+  return new Promise(resolve=>{
+    let settled = false;
+    const finish = ()=>{
+      if(settled) return;
+      settled = true;
+      map.off('moveend', finish);
+      resolve();
+    };
+
+    map.once('moveend', finish);
+    map.flyToBounds(routePoints, {
+      padding: [60, 60],
+      maxZoom: 7,
+      animate: true,
+      duration: 1.1
+    });
+
+    // Leaflet may skip moveend when the requested view is already active.
+    setTimeout(finish, 1400);
+  });
+}
+
+async function waitWhilePlaybackPaused(runId){
+  while(isPaused && runId===playbackRunId) await sleep(60);
+}
+
+async function animateFlightsSequentially(startIndex=0, runId=playbackRunId){
   const flights = loadFlights();
   if(flights.length===0) return;
+  flightPolylines.forEach((line, index)=>line.setStyle({opacity:index < startIndex ? 0.9 : 0}));
   // compute total steps for slider
   const stepsPerLeg = 160;
   const duration = 2200;
   const totalSteps = flights.length * stepsPerLeg;
   const slider = document.getElementById('progressSlider');
   slider.max = totalSteps;
-  slider.value = 0;
+  slider.value = startIndex * stepsPerLeg;
   document.getElementById('currentTransport').textContent = '';
 
 
   // create animation marker and line
   if(animMarker){ map.removeLayer(animMarker); animMarker=null; }
   if(animLine){ map.removeLayer(animLine); animLine=null; }
-  animMarker = L.marker(flights[0].fromCoords,{icon:createTransportIcon(flights[0].type),zIndexOffset:1000}).addTo(map);
+  animMarker = L.marker(flights[startIndex].fromCoords,{icon:createTransportIcon(flights[startIndex].type),zIndexOffset:1000}).addTo(map);
   animLine = L.polyline([], {color:'#FFDAB9',weight:4,opacity:0.95}).addTo(map);
 
-  let stepCounter = 0;
-  for(let idx=0; idx<flights.length && isAnimating; idx++){
+  let stepCounter = startIndex * stepsPerLeg;
+  for(let idx=startIndex; idx<flights.length && isAnimating && runId===playbackRunId; idx++){
+    await waitWhilePlaybackPaused(runId);
+    if(!isAnimating || runId!==playbackRunId) break;
+    playbackIndex = idx;
     const f = flights[idx];
-    const [lat1,lon1] = f.fromCoords; const [lat2,lon2] = f.toCoords;
+    const routePoints = greatCirclePoints(f.fromCoords, f.toCoords, stepsPerLeg);
+    document.getElementById('currentTransport').textContent = transportPlaybackLabel(f);
+    await focusMapOnLeg(routePoints);
+    if(!isAnimating || runId!==playbackRunId) break;
+    await waitWhilePlaybackPaused(runId);
     animLine.setLatLngs([]);
     animLine.setStyle({color: (f.type==='train')? '#4A6B8B' : (f.type==='boat')? '#2E8B57' : '#FFDAB9'});
     animMarker.setIcon(createTransportIcon(f.type));
-    // show date in short month/day format (e.g., "Aug 7") if available, otherwise show type
-    const curEl = document.getElementById('currentTransport');
-    if(f.date){
-      try{
-        const d = new Date(f.date + 'T00:00:00');
-        const fmt = new Intl.DateTimeFormat('en', {month:'short', day:'numeric'});
-        curEl.textContent = fmt.format(d);
-      }catch(e){ curEl.textContent = (f.type||'').toUpperCase(); }
-    } else { curEl.textContent = (f.type||'').toUpperCase(); }
-    // do not pan or change the map view during animation; user can pan/zoom manually
-    const steps = stepsPerLeg;
-    const stepTime = duration/steps;
-    for(let i=0;i<=steps && isAnimating;i++){
-      const t = i/steps;
-      const lat = lat1 + (lat2-lat1)*t;
-      const lon = lon1 + (lon2-lon1)*t;
-      animMarker.setLatLng([lat,lon]);
-      const pts = animLine.getLatLngs(); pts.push([lat,lon]); animLine.setLatLngs(pts);
+    const stepTime = duration / stepsPerLeg;
+    for(let i=0;i<routePoints.length && isAnimating && runId===playbackRunId;i++){
+      await waitWhilePlaybackPaused(runId);
+      if(!isAnimating || runId!==playbackRunId) break;
+      animMarker.setLatLng(routePoints[i]);
+      const pts = animLine.getLatLngs(); pts.push(routePoints[i]); animLine.setLatLngs(pts);
       stepCounter++;
       slider.value = Math.min(stepCounter, totalSteps);
       await sleep(stepTime);
+    }
+    if(isAnimating && runId===playbackRunId && flightPolylines[idx]){
+      flightPolylines[idx].setStyle({opacity:0.9});
     }
     // small pause between legs
     await sleep(300);
   }
 
+  if(runId!==playbackRunId) return;
   // animation finished or cancelled
   isAnimating = false;
+  isPaused = false;
+  playbackIndex = 0;
   const btn = document.getElementById('playFlights'); btn.textContent = 'Play';
   // remove anim marker and line
   if(animMarker){ map.removeLayer(animMarker); animMarker=null; }
@@ -505,15 +623,37 @@ async function animateFlightsSequentially(){
 }
 
 function toggleFlightAnimation(){
-  isAnimating = !isAnimating;
   const btn = document.getElementById('playFlights');
   if(isAnimating){
-    btn.textContent = 'Stop';
-    animateFlightsSequentially().catch(()=>{});
+    isPaused = !isPaused;
+    btn.textContent = isPaused ? 'Resume' : 'Pause';
   } else {
-    btn.textContent = 'Play';
-    // if manually stopped, cleanup will be done in animateFlightsSequentially loop
+    startPlaybackAt(playbackIndex);
   }
+}
+
+function startPlaybackAt(index){
+  const flights = loadFlights();
+  if(flights.length===0) return;
+  playbackIndex = Math.max(0, Math.min(index, flights.length-1));
+  const runId = ++playbackRunId;
+  isAnimating = true;
+  isPaused = false;
+  document.getElementById('playFlights').textContent = 'Pause';
+  animateFlightsSequentially(playbackIndex, runId).catch(()=>{
+    if(runId===playbackRunId && isAnimating){
+      isAnimating = false;
+      isPaused = false;
+      document.getElementById('playFlights').textContent = 'Play';
+    }
+  });
+}
+
+function changePlaybackLeg(direction){
+  const flights = loadFlights();
+  if(flights.length===0) return;
+  const target = Math.max(0, Math.min(playbackIndex + direction, flights.length-1));
+  startPlaybackAt(target);
 }
 
 // no saved view — we won't change the user's map view during animation
@@ -574,7 +714,62 @@ const flightForm = document.getElementById('flightForm');
 const flightsList = document.getElementById('flightsList');
 const submitBtn = document.getElementById('submitBtn');
 const cancelBtn = document.getElementById('cancelEdit');
+const airportLookupStatus = document.getElementById('airportLookupStatus');
 let editingIndex = null;
+
+function airportDisplayName(result, fallbackCode){
+  const address = result.address || {};
+  return address.city || address.town || address.municipality ||
+    address.county || result.name || `${fallbackCode} Airport`;
+}
+
+async function lookupAirport(codeField, cityField, coordsField){
+  const codeInput = flightForm.elements[codeField];
+  const code = String(codeInput.value || '').trim().toUpperCase();
+  codeInput.value = code;
+  if(!/^[A-Z]{3}$/.test(code)){
+    airportLookupStatus.textContent = 'Enter a valid 3-letter IATA airport code.';
+    codeInput.focus();
+    return;
+  }
+
+  airportLookupStatus.textContent = `Looking up ${code}…`;
+  try{
+    const params = new URLSearchParams({
+      q: `${code} airport`,
+      format: 'jsonv2',
+      addressdetails: '1',
+      limit: '5'
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: {'Accept': 'application/json'}
+    });
+    if(!response.ok) throw new Error('Airport lookup request failed');
+    const results = await response.json();
+    const result = results.find(item=>{
+      const text = `${item.name || ''} ${item.display_name || ''}`.toUpperCase();
+      return text.includes(code) || item.type === 'aerodrome';
+    }) || results[0];
+    const lat = Number(result && result.lat);
+    const lon = Number(result && result.lon);
+    if(!result || !Number.isFinite(lat) || !Number.isFinite(lon)){
+      throw new Error(`No airport found for ${code}`);
+    }
+
+    flightForm.elements[cityField].value = airportDisplayName(result, code);
+    flightForm.elements[coordsField].value = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+    airportLookupStatus.textContent = `Found ${result.display_name || code}.`;
+  }catch(e){
+    airportLookupStatus.textContent = `${e.message}. Check the code or enter the coordinates manually.`;
+  }
+}
+
+document.getElementById('lookupFromAirport').addEventListener('click', ()=>{
+  lookupAirport('fromAirportCode', 'from', 'fromCoords');
+});
+document.getElementById('lookupToAirport').addEventListener('click', ()=>{
+  lookupAirport('toAirportCode', 'to', 'toCoords');
+});
 
 function renderFlightsList(){
   const flights = loadFlights();
@@ -599,6 +794,8 @@ function populateFormForEdit(idx){
   const f = flights[idx];
   flightForm.elements['from'].value = f.from;
   flightForm.elements['to'].value = f.to;
+  flightForm.elements['fromAirportCode'].value = f.fromAirportCode || '';
+  flightForm.elements['toAirportCode'].value = f.toAirportCode || '';
   flightForm.elements['type'].value = f.type || 'flight';
   flightForm.elements['date'].value = f.date || '';
   flightForm.elements['endDate'].value = f.endDate || '';
@@ -618,6 +815,8 @@ flightForm.addEventListener('submit', e=>{
   const fd = new FormData(flightForm);
   const from = fd.get('from').trim();
   const to = fd.get('to').trim();
+  const fromAirportCode = String(fd.get('fromAirportCode') || '').trim().toUpperCase();
+  const toAirportCode = String(fd.get('toAirportCode') || '').trim().toUpperCase();
   const type = fd.get('type') || 'flight';
   const date = fd.get('date') || '';
   const endDate = fd.get('endDate') || '';
@@ -625,7 +824,7 @@ flightForm.addEventListener('submit', e=>{
   const toCoords = fd.get('toCoords').split(',').map(s=>parseFloat(s.trim()));
   if(fromCoords.length!==2||toCoords.length!==2||fromCoords.some(isNaN)||toCoords.some(isNaN)){ alert('Please enter valid coordinates.'); return; }
   const flights = loadFlights();
-  const obj = {from,to,type,date,endDate,fromCoords,toCoords};
+  const obj = {from,to,fromAirportCode,toAirportCode,type,date,endDate,fromCoords,toCoords};
   if(editingIndex!==null){ flights[editingIndex] = obj; editingIndex = null; submitBtn.textContent='Add'; cancelBtn.style.display='none'; }
   else { flights.push(obj); }
   saveFlights(flights);
@@ -662,7 +861,7 @@ async function restoreFromServer(){
     if(!res.ok){ const txt=await res.text(); alert('Restore failed: '+txt); return; }
     const data = await res.json();
     if(!Array.isArray(data)) { alert('Restore failed: invalid data'); return; }
-    localStorage.setItem('flights', JSON.stringify(data));
+    saveFlights(data);
     renderFlights(); renderFlightsList(); renderTimeline(data);
     alert('Restore complete');
   }catch(e){ alert('Restore failed: '+e.message); }
